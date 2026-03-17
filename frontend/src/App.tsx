@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { Search, Command } from "lucide-react";
+import { Search, Command, CornerDownLeft } from "lucide-react";
+import WordCloud from "./WordCloud";
+
+type Word = {
+  word: string;
+  weight: number;
+};
 
 const sampleArticles = [
   {
@@ -21,6 +27,36 @@ const sampleArticles = [
 
 export default function App() {
   const [url, setUrl] = useState("");
+  const [words, setWords] = useState<Word[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function analyze() {
+    if (!url) return;
+
+    setLoading(true);
+    setError("");
+    setWords([]);
+
+    try {
+      const response = await fetch("http://localhost:8000/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to analyze article");
+      }
+
+      const data = await response.json();
+      setWords(data.words);
+    } catch {
+      setError("Something went wrong. Please check the URL and try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div
@@ -49,39 +85,57 @@ export default function App() {
               "linear-gradient(to right, #38bdf870, #a78bfa70, #d8b4fe70, #f9a8d470)",
           }}
         >
-          <div className="rounded-[calc(1rem-1px)] bg-white px-6 py-4 flex items-center gap-4">
-            <Search size={22} color="#7070b0" className="shrink-0" />
+          <div className="rounded-[calc(1rem-1px)] bg-white px-6 py-4 flex justify-between gap-4">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <Search size={22} color="#7070b0" className="shrink-0" />
 
-            <input
-              type="url"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="Enter a url..."
-              className="flex-1 bg-transparent outline-none border-none text-gray-500 placeholder-slate-500 text-base"
-              onKeyDown={(e) => e.key === "Enter" && alert("test")}
-            />
+              <input
+                type="url"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="Enter a url..."
+                className="flex-1 min-w-0 bg-transparent outline-none border-none text-gray-500 placeholder-slate-500 text-base"
+                onKeyDown={(e) => e.key === "Enter" && analyze()}
+              />
+            </div>
 
             <div className="flex items-center gap-1.5 shrink-0">
-              <div className="flex items-center justify-center w-7 h-7 rounded-md bg-[rgba(200,200,220,0.3)] border border-[rgba(180,180,210,0.3)] text-[#7070b0]">
-                <Command size={14} />
-              </div>
-              <span className="text-sm text-[#7070b0]">·</span>
-              <div className="flex items-center justify-center w-7 h-7 rounded-md bg-[rgba(200,200,220,0.3)] border border-[rgba(180,180,210,0.3)] text-sm text-[#7070b0] leading-none">
-                /
-              </div>
+              {url ? (
+                <button
+                  key="enter"
+                  onClick={analyze}
+                  className="flex items-center gap-1.5 px-2.5 h-7 rounded-md bg-[rgba(200,200,220,0.3)] border border-[rgba(180,180,210,0.3)] text-[#7070b0] text-sm animate-blur-in cursor-pointer hover:bg-[rgba(200,200,220,0.5)] transition-all active:scale-[0.97] duration-150"
+                >
+                  <CornerDownLeft size={14} />
+                  <span>Enter</span>
+                </button>
+              ) : (
+                <div
+                  key="shortcut"
+                  className="flex items-center gap-1.5 animate-blur-in"
+                >
+                  <div className="flex items-center justify-center w-7 h-7 rounded-md bg-[rgba(200,200,220,0.3)] border border-[rgba(180,180,210,0.3)] text-[#7070b0]">
+                    <Command size={14} />
+                  </div>
+                  <span className="text-sm text-[#7070b0]">+</span>
+                  <div className="flex items-center justify-center w-7 h-7 rounded-md bg-[rgba(200,200,220,0.3)] border border-[rgba(180,180,210,0.3)] text-sm text-[#7070b0] leading-none">
+                    /
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
 
       {/* Sample news article pills */}
-      <div className="flex items-center gap-2 text-sm text-slate-400">
+      <div className="flex items-center gap-2 text-sm text-slate-500">
         <span>Try:</span>
         {sampleArticles.map(({ label, icon, url: sampleUrl }) => (
           <button
             key={label}
             onClick={() => setUrl(sampleUrl)}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-violet-200 bg-white/60 hover:bg-white transition-colors text-slate-500 cursor-pointer text-xs"
+            className="cursor-pointer flex items-center gap-1.5 px-3 py-2 rounded-full border border-violet-200 bg-white/60 hover:bg-violet-50 text-slate-500 text-xs active:scale-[0.97] duration-150 transition-all"
           >
             <img
               src={icon}
@@ -92,6 +146,21 @@ export default function App() {
           </button>
         ))}
       </div>
+
+      {/* States */}
+      {loading && (
+        <p className="mt-10 text-slate-600 text-sm animate-pulse">
+          Analyzing article...
+        </p>
+      )}
+      {error && <p className="mt-10 text-red-400 text-sm">{error}</p>}
+
+      {/* 3D Word Cloud */}
+      {words.length > 0 && (
+        <div className="w-full mt-10" style={{ height: "60vh" }}>
+          <WordCloud words={words} />
+        </div>
+      )}
     </div>
   );
 }
