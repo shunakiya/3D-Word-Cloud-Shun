@@ -59,7 +59,12 @@ const FONT_URL =
   "https://threejs.org/examples/fonts/helvetiker_regular.typeface.json";
 
 export default function WordCloud({ words }: { words: Word[] }) {
-  const positions = generatePositions(words);
+  // Re-normalize by rank so colors and sizes spread evenly
+  const ranked = words.map((w, i) => ({
+    ...w,
+    weight: words.length > 1 ? 1 - i / (words.length - 1) : 1,
+  }));
+  const positions = generatePositions(ranked);
 
   return (
     <Canvas camera={{ position: [0, 0, 8], fov: 60 }}>
@@ -67,7 +72,7 @@ export default function WordCloud({ words }: { words: Word[] }) {
       <directionalLight position={[5, 5, 5]} intensity={1} />
       <OrbitControls enableZoom={true} enablePan={false} />
       <group>
-        {words.map((item, i) => {
+        {ranked.map((item, i) => {
           const pos = positions[i];
           const size = 0.15 + item.weight * 0.45;
 
